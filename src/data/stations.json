@@ -1,0 +1,227 @@
+[
+  {
+    "id": "8011160",
+    "name": "Berlin Hbf",
+    "slug": "berlin-hbf",
+    "city": "Berlin",
+    "country": "DE",
+    "coordinates": { "lat": 52.525083, "lng": 13.369389 },
+    "popularHub": true
+  },
+  {
+    "id": "8000261",
+    "name": "München Hbf",
+    "slug": "muenchen-hbf",
+    "city": "München",
+    "country": "DE",
+    "coordinates": { "lat": 48.140833, "lng": 11.555 },
+    "popularHub": true
+  },
+  {
+    "id": "8002549",
+    "name": "Hamburg Hbf",
+    "slug": "hamburg-hbf",
+    "city": "Hamburg",
+    "country": "DE",
+    "coordinates": { "lat": 53.552778, "lng": 10.006389 },
+    "popularHub": true
+  },
+  {
+    "id": "8000105",
+    "name": "Frankfurt (Main) Hbf",
+    "slug": "frankfurt-main-hbf",
+    "city": "Frankfurt am Main",
+    "country": "DE",
+    "coordinates": { "lat": 50.107256, "lng": 8.662616 },
+    "popularHub": true
+  },
+  {
+    "id": "8000207",
+    "name": "Köln Hbf",
+    "slug": "koeln-hbf",
+    "city": "Köln",
+    "country": "DE",
+    "coordinates": { "lat": 50.9425, "lng": 6.958056 },
+    "popularHub": true
+  },
+  {
+    "id": "8000096",
+    "name": "Stuttgart Hbf",
+    "slug": "stuttgart-hbf",
+    "city": "Stuttgart",
+    "country": "DE",
+    "coordinates": { "lat": 48.783889, "lng": 9.181667 },
+    "popularHub": true
+  },
+  {
+    "id": "8000085",
+    "name": "Düsseldorf Hbf",
+    "slug": "duesseldorf-hbf",
+    "city": "Düsseldorf",
+    "country": "DE",
+    "coordinates": { "lat": 51.220278, "lng": 6.792778 },
+    "popularHub": true
+  },
+  {
+    "id": "8010205",
+    "name": "Leipzig Hbf",
+    "slug": "leipzig-hbf",
+    "city": "Leipzig",
+    "country": "DE",
+    "coordinates": { "lat": 51.345278, "lng": 12.382222 },
+    "popularHub": true
+  },
+  {
+    "id": "8000152",
+    "name": "Hannover Hbf",
+    "slug": "hannover-hbf",
+    "city": "Hannover",
+    "country": "DE",
+    "coordinates": { "lat": 52.3772, "lng": 9.74167 },
+    "popularHub": true
+  },
+  {
+    "id": "8000284",
+    "name": "Nürnberg Hbf",
+    "slug": "nuernberg-hbf",
+    "city": "Nürnberg",
+    "country": "DE",
+    "coordinates": { "lat": 49.446389, "lng": 11.081944 },
+    "popularHub": true
+  },
+  {
+    "id": "8010085",
+    "name": "Dresden Hbf",
+    "slug": "dresden-hbf",
+    "city": "Dresden",
+    "country": "DE",
+    "coordinates": { "lat": 51.040278, "lng": 13.731667 },
+    "popularHub": true
+  },
+  {
+    "id": "8000050",
+    "name": "Bremen Hbf",
+    "slug": "bremen-hbf",
+    "city": "Bremen",
+    "country": "DE",
+    "coordinates": { "lat": 53.0831, "lng": 8.81361 },
+    "popularHub": true
+  },
+  {
+    "id": "8000080",
+    "name": "Dortmund Hbf",
+    "slug": "dortmund-hbf",
+    "city": "Dortmund",
+    "country": "DE",
+    "coordinates": { "lat": 51.5175, "lng": 7.458889 },
+    "popularHub": true
+  },
+  {
+    "id": "8000098",
+    "name": "Essen Hbf",
+    "slug": "essen-hbf",
+    "city": "Essen",
+    "country": "DE",
+    "coordinates": { "lat": 51.451389, "lng": 7.013889 },
+    "popularHub": true
+  },
+  {
+    "id": "8000244",
+    "name": "Mannheim Hbf",
+    "slug": "mannheim-hbf",
+    "city": "Mannheim",
+    "country": "DE",
+    "coordinates": { "lat": 49.479722, "lng": 8.469722 },
+    "popularHub": true
+  },
+  {
+    "id": "8000191",
+    "name": "Karlsruhe Hbf",
+    "slug": "karlsruhe-hbf",
+    "city": "Karlsruhe",
+    "country": "DE",
+    "coordinates": { "lat": 48.993889, "lng": 8.400556 },
+    "popularHub": true
+  },
+  {
+    "id": "8000107",
+    "name": "Freiburg (Breisgau) Hbf",
+    "slug": "freiburg-breisgau-hbf",
+    "city": "Freiburg im Breisgau",
+    "country": "DE",
+    "coordinates": { "lat": 47.997778, "lng": 7.841944 },
+    "popularHub": true
+  },
+  {
+    "id": "8000263",
+    "name": "Münster (Westf) Hbf",
+    "slug": "muenster-westf-hbf",
+    "city": "Münster",
+    "country": "DE",
+    "coordinates": { "lat": 51.956667, "lng": 7.635 },
+    "popularHub": true
+  },
+  {
+    "id": "8103000",
+    "name": "Wien Hbf",
+    "slug": "wien-hbf",
+    "city": "Wien",
+    "country": "AT",
+    "coordinates": { "lat": 48.185, "lng": 16.377778 },
+    "popularHub": true
+  },
+  {
+    "id": "8100002",
+    "name": "Salzburg Hbf",
+    "slug": "salzburg-hbf",
+    "city": "Salzburg",
+    "country": "AT",
+    "coordinates": { "lat": 47.813056, "lng": 13.046667 },
+    "popularHub": true
+  },
+  {
+    "id": "8100108",
+    "name": "Innsbruck Hbf",
+    "slug": "innsbruck-hbf",
+    "city": "Innsbruck",
+    "country": "AT",
+    "coordinates": { "lat": 47.263889, "lng": 11.400833 },
+    "popularHub": true
+  },
+  {
+    "id": "8100013",
+    "name": "Linz Hbf",
+    "slug": "linz-hbf",
+    "city": "Linz",
+    "country": "AT",
+    "coordinates": { "lat": 48.290556, "lng": 14.291111 },
+    "popularHub": true
+  },
+  {
+    "id": "8503000",
+    "name": "Zürich HB",
+    "slug": "zuerich-hb",
+    "city": "Zürich",
+    "country": "CH",
+    "coordinates": { "lat": 47.378169, "lng": 8.540178 },
+    "popularHub": true
+  },
+  {
+    "id": "8500010",
+    "name": "Basel SBB",
+    "slug": "basel-sbb",
+    "city": "Basel",
+    "country": "CH",
+    "coordinates": { "lat": 47.547389, "lng": 7.589611 },
+    "popularHub": true
+  },
+  {
+    "id": "8507000",
+    "name": "Bern",
+    "slug": "bern",
+    "city": "Bern",
+    "country": "CH",
+    "coordinates": { "lat": 46.948819, "lng": 7.439117 },
+    "popularHub": true
+  }
+]
