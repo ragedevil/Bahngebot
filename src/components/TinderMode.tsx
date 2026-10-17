@@ -1,138 +1,188 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, Heart, RotateCcw, ArrowRight, Calendar, MapPin, Sparkles, ArrowLeft, Flame } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { X, Heart, RotateCcw, ArrowRight, Calendar, MapPin, ArrowLeft, Flame } from "lucide-react";
 
-interface TrainDeal {
-  id: string;
-  from: string;
-  destination: string;
-  price: number;
-  originalPrice: number;
-  duration: string;
-  trainType: string;
-  image: string;
-  highlight: string;
-  departureTime: string;
+import { StationAutocomplete } from "@/components/StationAutocomplete";
+import { searchAnywhere } from "@/lib/api-client";
+import {
+  formatClock,
+  formatDuration,
+  formatFareCategory,
+  formatPrice,
+} from "@/lib/format";
+import {
+  DEFAULT_FROM_STATION,
+  type StationSelection,
+} from "@/lib/stations";
+import type { JourneyOffer, TrainLeg } from "@/types/rail";
+
+const CARD_IMAGE =
+  "https://images.unsplash.com/photo-1595867818082-083862f3d630?q=80&w=1200&auto=format&fit=crop";
+
+function firstTrainLeg(offer: JourneyOffer): TrainLeg | undefined {
+  return offer.legs.find((leg): leg is TrainLeg => leg.kind === "train");
 }
 
-const DEALS_DATABASE: Record<string, TrainDeal[]> = {
-  default: [
-    {
-      id: "deal-1",
-      from: "Berlin Hbf",
-      destination: "München Hbf",
-      price: 17.50,
-      originalPrice: 79.90,
-      duration: "3h 54m",
-      trainType: "ICE Sprinter",
-      departureTime: "07:28",
-      highlight: "Direct high-speed corridor straight into Bavaria.",
-      image: "https://images.unsplash.com/photo-1595867818082-083862f3d630?q=80&w=1200&auto=format&fit=crop",
-    },
-    {
-      id: "deal-2",
-      from: "Berlin Hbf",
-      destination: "Wien Hbf",
-      price: 24.90,
-      originalPrice: 89.00,
-      duration: "7h 10m",
-      trainType: "ICE / Railjet",
-      departureTime: "08:15",
-      highlight: "Scenic cross-border route to Austrian coffee houses.",
-      image: "https://images.unsplash.com/photo-1516550893923-42d28e5677af?q=80&w=1200&auto=format&fit=crop",
-    },
-    {
-      id: "deal-3",
-      from: "Berlin Hbf",
-      destination: "Amsterdam Centraal",
-      price: 27.90,
-      originalPrice: 95.00,
-      duration: "5h 48m",
-      trainType: "IC International",
-      departureTime: "09:34",
-      highlight: "Direct train across Dutch countryside to the canals.",
-      image: "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?q=80&w=1200&auto=format&fit=crop",
-    },
-    {
-      id: "deal-4",
-      from: "Berlin Hbf",
-      destination: "Hamburg Hbf",
-      price: 14.90,
-      originalPrice: 49.00,
-      duration: "1h 45m",
-      trainType: "ICE",
-      departureTime: "10:04",
-      highlight: "Sub-2-hour blast to the Elbphilharmonie and harbor.",
-      image: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?q=80&w=1200&auto=format&fit=crop",
-    },
-    {
-      id: "deal-5",
-      from: "Berlin Hbf",
-      destination: "Köln Hbf",
-      price: 19.90,
-      originalPrice: 74.00,
-      duration: "4h 12m",
-      trainType: "ICE",
-      departureTime: "11:28",
-      highlight: "World-famous Cathedral right outside the platform gate.",
-      image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?q=80&w=1200&auto=format&fit=crop",
-    },
-    {
-      id: "deal-6",
-      from: "Berlin Hbf",
-      destination: "Zürich HB",
-      price: 34.90,
-      originalPrice: 119.00,
-      duration: "8h 20m",
-      trainType: "ICE Nightjet",
-      departureTime: "20:45",
-      highlight: "Alpine getaway with scenic lake and mountain views.",
-      image: "https://images.unsplash.com/photo-1515488764276-beab7607c1e6?q=80&w=1200&auto=format&fit=crop",
-    },
-  ],
-};
+function trainLabel(offer: JourneyOffer): string {
+  const leg = firstTrainLeg(offer);
+  return leg ? `${leg.line} · ${leg.product}` : "Train";
+}
+
+function dealHighlight(offer: JourneyOffer): string {
+  const product = firstTrainLeg(offer)?.product ?? "train";
+  const stops =
+    offer.transfers === 0
+      ? "Direct connection"
+      : `${offer.transfers} transfer${offer.transfers === 1 ? "" : "s"}`;
+  return `${stops} · ${product} · ${formatFareCategory(offer.category)}`;
+}
 
 interface TinderModeProps {
   onBack: () => void;
 }
 
 export function TinderMode({ onBack }: TinderModeProps) {
-  const [from, setFrom] = useState("Berlin Hbf");
+  const [fromStation, setFromStation] = useState<StationSelection | null>(
+    DEFAULT_FROM_STATION,
+  );
   const [budget, setBudget] = useState<number>(30);
   const [date, setDate] = useState("2026-10-24");
   const [gender, setGender] = useState<"boy" | "girl">("boy");
   const [hasStartedSwiping, setHasStartedSwiping] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [savedDeals, setSavedDeals] = useState<TrainDeal[]>([]);
+  const [offers, setOffers] = useState<JourneyOffer[]>([]);
+  const [deckIndex, setDeckIndex] = useState(0);
+  const [likedTrips, setLikedTrips] = useState<JourneyOffer[]>([]);
   const [lastAction, setLastAction] = useState<"pass" | "like" | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const loadedDeckKey = useRef<string | null>(null);
 
-  const filteredDeals = DEALS_DATABASE.default.filter((d) => d.price <= budget);
-  const activeDeal = filteredDeals[currentIndex];
+  const filteredDeals = offers.filter(
+    (deal) => deal.priceInCents <= Math.round(budget * 100),
+  );
+  const activeDeal = filteredDeals[deckIndex];
   const roleLabel = gender === "boy" ? "I will rail" : "I'll be railed";
 
-  const handleStart = (e: React.FormEvent) => {
+  const deckKey = `${fromStation?.id ?? ""}|${date}|${budget}`;
+
+  const loadDeck = useCallback(
+    async (signal?: AbortSignal): Promise<JourneyOffer[]> => {
+      if (!fromStation) return [];
+
+      const response = await searchAnywhere(
+        {
+          mode: "from",
+          originStationId: fromStation.id,
+          departureDateFrom: date,
+          departureDateTo: date,
+          maxPriceInCents: Math.round(budget * 100),
+          passengers: 1,
+          sortBy: "PRICE_ASC",
+          limit: 40,
+        },
+        { signal },
+      );
+
+      if (signal?.aborted) return [];
+      loadedDeckKey.current = deckKey;
+      return response.data;
+    },
+    [budget, date, deckKey, fromStation],
+  );
+
+  // Seed the deck automatically with the default origin/budget, and refresh it
+  // whenever the origin, date or budget changes on the setup form.
+  useEffect(() => {
+    if (!fromStation) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setIsSearching(true);
+      setError(null);
+
+      loadDeck(controller.signal)
+        .then((data) => {
+          if (controller.signal.aborted) return;
+          setOffers(data);
+          setDeckIndex(0);
+          setLikedTrips([]);
+          setLastAction(null);
+        })
+        .catch((requestError: unknown) => {
+          if (controller.signal.aborted) return;
+          setError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Could not load journeys. Please try again.",
+          );
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setIsSearching(false);
+        });
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [fromStation, loadDeck]);
+
+  const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentIndex(0);
-    setSavedDeals([]);
+
+    if (!fromStation) {
+      setError("Select a starting station from the suggestions.");
+      return;
+    }
+
+    setError(null);
+
+    if (loadedDeckKey.current !== deckKey || offers.length === 0) {
+      setIsSearching(true);
+      try {
+        const data = await loadDeck();
+        setOffers(data);
+      } catch (requestError) {
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Could not load journeys. Please try again.",
+        );
+        return;
+      } finally {
+        setIsSearching(false);
+      }
+    }
+
+    setDeckIndex(0);
+    setLikedTrips([]);
+    setLastAction(null);
     setHasStartedSwiping(true);
   };
 
   const handleSwipe = (direction: "left" | "right") => {
-    if (!activeDeal) return;
+    if (!activeDeal || lastAction !== null) return;
     setLastAction(direction === "left" ? "pass" : "like");
+
     if (direction === "right") {
-      setSavedDeals((prev) => [...prev, activeDeal]);
+      setLikedTrips((prev) => [...prev, activeDeal]);
     }
+
     setTimeout(() => {
-      setCurrentIndex((prev) => prev + 1);
+      setDeckIndex((prev) => prev + 1);
       setLastAction(null);
     }, 200);
   };
 
   const handleReset = () => {
-    setCurrentIndex(0);
-    setSavedDeals([]);
+    setDeckIndex(0);
+    setLikedTrips([]);
+    setLastAction(null);
+  };
+
+  const handleBook = (deal: JourneyOffer) => {
+    window.open(deal.bookingDeepLink, "_blank", "noopener,noreferrer");
   };
 
   // STEP 1: Starting Destination & Budget Form (Lighter surface, no harsh borders, Tinder Pink highlights)
@@ -175,11 +225,10 @@ export function TinderMode({ onBack }: TinderModeProps) {
             </label>
             <div className="px-4 py-3.5 bg-white/[0.06] rounded-2xl flex items-center gap-3">
               <MapPin className="w-4 h-4 text-[#FF4458] shrink-0" />
-              <input
-                type="text"
+              <StationAutocomplete
+                value={fromStation}
+                onChange={setFromStation}
                 required
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
                 placeholder="e.g. Berlin Hbf, München Hbf..."
                 className="w-full bg-transparent text-[#FAFAFA] placeholder-zinc-400 focus:outline-none text-sm font-medium"
               />
@@ -262,13 +311,16 @@ export function TinderMode({ onBack }: TinderModeProps) {
             </div>
           </div>
 
+          {error && <p className="text-xs text-[#FF4458]">{error}</p>}
+
           {/* Action: Tinder Pink (#FF4458) CTA Button */}
           <button
             type="submit"
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#FF4458] to-[#FF6036] hover:opacity-95 text-white font-semibold text-sm transition-all shadow-xl shadow-[#FF4458]/30 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+            disabled={isSearching}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#FF4458] to-[#FF6036] hover:opacity-95 text-white font-semibold text-sm transition-all shadow-xl shadow-[#FF4458]/30 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
           >
             <Flame className="w-4 h-4 fill-current" />
-            <span>Start Swiping Tracks</span>
+            <span>{isSearching ? "Finding your tracks..." : "Start Swiping Tracks"}</span>
           </button>
         </form>
       </div>
@@ -293,7 +345,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
         </span>
       </div>
 
-      {currentIndex < filteredDeals.length ? (
+      {deckIndex < filteredDeals.length ? (
         <div className="w-full flex flex-col items-center">
           <div
             className={`relative w-full h-[460px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-200 bg-zinc-900/90 select-none ${
@@ -302,19 +354,19 @@ export function TinderMode({ onBack }: TinderModeProps) {
           >
             <div
               className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url('${activeDeal.image}')` }}
+              style={{ backgroundImage: `url('${CARD_IMAGE}')` }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
 
             {/* Top Bar Badges with Signal Green (#10B981) */}
             <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
               <span className="text-[11px] font-mono font-medium px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-[#FAFAFA]">
-                {activeDeal.trainType}
+                {trainLabel(activeDeal)}
               </span>
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-[#10B981] font-bold text-xs shadow-md">
-                <span>€{activeDeal.price.toFixed(2)}</span>
-                <span className="text-[10px] text-zinc-400 line-through font-normal">
-                  €{activeDeal.originalPrice.toFixed(2)}
+                <span>{formatPrice(activeDeal.priceInCents)}</span>
+                <span className="text-[10px] text-zinc-400 font-normal">
+                  {formatFareCategory(activeDeal.category)}
                 </span>
               </div>
             </div>
@@ -322,20 +374,20 @@ export function TinderMode({ onBack }: TinderModeProps) {
             {/* Bottom Card Content */}
             <div className="absolute bottom-6 left-6 right-6 text-left">
               <div className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider mb-1">
-                {from} → {activeDeal.destination}
+                {fromStation?.name} → {activeDeal.destination.name}
               </div>
 
               <h4 className="text-3xl font-semibold tracking-tight text-[#FAFAFA] leading-tight">
-                {activeDeal.destination}
+                {activeDeal.destination.name}
               </h4>
 
               <p className="text-xs text-zinc-200 mt-2 leading-relaxed">
-                {activeDeal.highlight}
+                {dealHighlight(activeDeal)}
               </p>
 
               <div className="flex items-center justify-between text-[11px] text-zinc-300 font-mono mt-3 pt-3 border-t border-white/10">
-                <span>Departs {activeDeal.departureTime}</span>
-                <span>Duration {activeDeal.duration}</span>
+                <span>Departs {formatClock(activeDeal.departure)}</span>
+                <span>Duration {formatDuration(activeDeal.durationMinutes)}</span>
               </div>
             </div>
           </div>
@@ -367,39 +419,42 @@ export function TinderMode({ onBack }: TinderModeProps) {
           </div>
 
           <h3 className="text-2xl font-semibold tracking-tight text-[#FAFAFA]">
-            Deck Complete
+            Your Track Matches
           </h3>
           <p className="text-xs sm:text-sm text-zinc-300 mt-2 mb-6">
-            Found <strong className="text-[#FF4458]">{savedDeals.length} matches</strong> under €{budget} from {from}.
+            Found <strong className="text-[#FF4458]">{likedTrips.length} matches</strong> under €{budget} from {fromStation?.name}.
           </p>
 
-          {savedDeals.length > 0 ? (
+          {likedTrips.length > 0 ? (
             <div className="space-y-2 mb-6 max-h-56 overflow-y-auto pr-1">
-              {savedDeals.map((deal) => (
+              {likedTrips.map((deal) => (
                 <div
                   key={deal.id}
                   className="p-3.5 rounded-2xl bg-white/[0.06] flex items-center justify-between text-left"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-[#FAFAFA]">{deal.destination}</div>
-                    <div className="text-[11px] text-zinc-300">{deal.duration} · {deal.trainType}</div>
+                    <div className="text-sm font-semibold text-[#FAFAFA]">{deal.destination.name}</div>
+                    <div className="text-[11px] text-zinc-300">{formatDuration(deal.durationMinutes)} · {trainLabel(deal)}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-bold text-[#10B981]">€{deal.price.toFixed(2)}</div>
-                    <a
-                      href="https://www.bahn.de"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-[#FF4458] hover:underline inline-flex items-center gap-0.5 font-medium"
+                    <div className="text-sm font-bold text-[#10B981]">{formatPrice(deal.priceInCents)}</div>
+                    <button
+                      type="button"
+                      onClick={() => handleBook(deal)}
+                      className="text-[11px] text-[#FF4458] hover:underline inline-flex items-center gap-0.5 font-medium cursor-pointer"
                     >
-                      Book DB <ArrowRight className="w-2.5 h-2.5" />
-                    </a>
+                      Book Ticket <ArrowRight className="w-2.5 h-2.5" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-zinc-400 mb-6">No routes saved. Try adjusting your budget.</p>
+            <p className="text-xs text-zinc-400 mb-6">
+              {filteredDeals.length === 0
+                ? "No journeys matched this origin, date and budget."
+                : "No routes saved. Try adjusting your budget."}
+            </p>
           )}
 
           <div className="flex gap-2">
@@ -408,7 +463,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
               className="flex-1 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-[#FAFAFA] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reshuffle</span>
+              <span>Restart Swiping</span>
             </button>
             <button
               onClick={() => setHasStartedSwiping(false)}

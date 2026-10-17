@@ -1,19 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { SpecificRouteWidget } from "@/components/SpecificRouteWidget";
+import { SpecificRouteWidget, type SpecificRouteSearchCriteria } from "@/components/SpecificRouteWidget";
 import { TinderMode } from "@/components/TinderMode";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
-import { MOCK_CONNECTIONS } from "@/data/mockConnections";
+import { searchAnywhere } from "@/lib/api-client";
+import { isoDateRange } from "@/lib/format";
+import { DEFAULT_FROM_STATION, DEFAULT_TO_STATION } from "@/lib/stations";
+import type { JourneyOffer } from "@/types/rail";
 import { Navigation, Flame, ArrowLeft } from "lucide-react";
 
 export default function Home() {
   const [selectedMode, setSelectedMode] = useState<"specific" | "tinder" | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
-  const [connections] = useState(MOCK_CONNECTIONS);
-  const [searchParams, setSearchParams] = useState({
-    from: "Berlin Hbf",
-    to: "München Hbf",
+  const [offers, setOffers] = useState<JourneyOffer[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useState<SpecificRouteSearchCriteria>({
+    from: DEFAULT_FROM_STATION,
+    to: DEFAULT_TO_STATION,
     date: "2026-10-24",
     passengers: 1,
   });
@@ -41,14 +46,64 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleSearch = (criteria: { from: string; to: string; date: string; passengers: number }) => {
+  const handleSearch = async (criteria: SpecificRouteSearchCriteria) => {
     setSearchParams(criteria);
     setHasSearched(true);
+    setIsSearching(true);
+    setSearchError(null);
+    setOffers([]);
+
+    try {
+      // Fetch each day in the -3…+3 window separately so the per-route result
+      // limit is not consumed by offers to other destinations.
+      const dates = isoDateRange(criteria.date, 3, 3);
+      const responses = await Promise.allSettled(
+        dates.map((date) =>
+          searchAnywhere({
+            mode: "from",
+            originStationId: criteria.from.id,
+            departureDateFrom: date,
+            departureDateTo: date,
+            passengers: criteria.passengers,
+            sortBy: "BEST",
+            limit: 100,
+          }),
+        ),
+      );
+
+      const fulfilled: Awaited<ReturnType<typeof searchAnywhere>>[] = [];
+      for (const result of responses) {
+        if (result.status === "fulfilled") fulfilled.push(result.value);
+      }
+
+      if (fulfilled.length === 0) {
+        const rejected = responses.find(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected",
+        );
+        throw rejected?.reason ?? new Error("Could not load fares.");
+      }
+
+      const routeOffers = fulfilled
+        .flatMap((response) => response.data)
+        .filter((offer) => offer.destination.id === criteria.to.id);
+
+      setOffers(routeOffers);
+    } catch (requestError) {
+      setSearchError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not load connections. Please try again.",
+      );
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleBackToModes = () => {
     setSelectedMode(null);
     setHasSearched(false);
+    setSearchError(null);
   };
 
   return (
@@ -181,15 +236,24 @@ export default function Home() {
                   initialTo={searchParams.to}
                   initialDate={searchParams.date}
                   onSearch={handleSearch}
+                  isSearching={isSearching}
                 />
 
-                {hasSearched && (
+                {hasSearched && !isSearching && (
                   <div className="w-full mt-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <ResultsDashboard
-                      connections={connections}
-                      fromStation={searchParams.from}
-                      toStation={searchParams.to}
-                    />
+                    {searchError ? (
+                      <p className="text-center text-sm text-[#FF4458]">
+                        {searchError}
+                      </p>
+                    ) : (
+                      <ResultsDashboard
+                        key={`${searchParams.from.id}-${searchParams.to.id}-${searchParams.date}`}
+                        offers={offers}
+                        fromStation={searchParams.from.name}
+                        toStation={searchParams.to.name}
+                        initialDate={searchParams.date}
+                      />
+                    )}
                   </div>
                 )}
               </>

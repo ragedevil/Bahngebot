@@ -3,36 +3,55 @@
 import React, { useState } from "react";
 import { ArrowRightLeft, Calendar, Search } from "lucide-react";
 
+import { StationAutocomplete } from "@/components/StationAutocomplete";
+import type { StationSelection } from "@/lib/stations";
+
+export interface SpecificRouteSearchCriteria {
+  from: StationSelection;
+  to: StationSelection;
+  date: string;
+  passengers: number;
+}
+
 interface SpecificRouteWidgetProps {
-  onSearch?: (criteria: { from: string; to: string; date: string; passengers: number }) => void;
+  onSearch?: (criteria: SpecificRouteSearchCriteria) => void;
   className?: string;
-  initialFrom?: string;
-  initialTo?: string;
+  initialFrom?: StationSelection | null;
+  initialTo?: StationSelection | null;
   initialDate?: string;
+  isSearching?: boolean;
 }
 
 export function SpecificRouteWidget({
   onSearch,
   className = "",
-  initialFrom = "Berlin Hbf",
-  initialTo = "München Hbf",
+  initialFrom = null,
+  initialTo = null,
   initialDate = "2026-10-24",
+  isSearching = false,
 }: SpecificRouteWidgetProps) {
-  const [from, setFrom] = useState(initialFrom);
-  const [to, setTo] = useState(initialTo);
+  const [from, setFrom] = useState<StationSelection | null>(initialFrom);
+  const [to, setTo] = useState<StationSelection | null>(initialTo);
   const [date, setDate] = useState(initialDate);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSwap = () => {
-    const temp = from;
+    const previousFrom = from;
     setFrom(to);
-    setTo(temp);
+    setTo(previousFrom);
+    setError(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSearch) {
-      onSearch({ from, to, date, passengers: 1 });
+
+    if (!from || !to) {
+      setError("Choose both stations from the suggestions.");
+      return;
     }
+
+    setError(null);
+    onSearch?.({ from, to, date, passengers: 1 });
   };
 
   return (
@@ -46,10 +65,10 @@ export function SpecificRouteWidget({
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider shrink-0">
             From
           </span>
-          <input
-            type="text"
+          <StationAutocomplete
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={setFrom}
+            required
             placeholder="Origin (e.g. Berlin Hbf)"
             className="w-full bg-transparent text-[#FAFAFA] placeholder-zinc-500 focus:outline-none text-sm font-medium"
           />
@@ -70,10 +89,10 @@ export function SpecificRouteWidget({
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider shrink-0">
             To
           </span>
-          <input
-            type="text"
+          <StationAutocomplete
             value={to}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={setTo}
+            required
             placeholder="Destination (e.g. München Hbf)"
             className="w-full bg-transparent text-[#FAFAFA] placeholder-zinc-500 focus:outline-none text-sm font-medium"
           />
@@ -93,12 +112,17 @@ export function SpecificRouteWidget({
         {/* Action Button: Electric Cobalt (#2563EB) */}
         <button
           type="submit"
-          className="w-full md:w-auto px-7 py-4 bg-[#2563EB] hover:bg-blue-600 text-white rounded-2xl font-semibold text-sm shadow-xl shadow-blue-500/25 active:scale-[0.98] transition-all shrink-0 cursor-pointer flex items-center justify-center gap-2"
+          disabled={isSearching}
+          className="w-full md:w-auto px-7 py-4 bg-[#2563EB] hover:bg-blue-600 text-white rounded-2xl font-semibold text-sm shadow-xl shadow-blue-500/25 active:scale-[0.98] transition-all shrink-0 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
         >
           <Search className="w-4 h-4 stroke-[2.5]" />
-          <span>Search</span>
+          <span>{isSearching ? "Searching..." : "Search"}</span>
         </button>
       </form>
+
+      {error && (
+        <p className="mt-2 text-xs text-[#FF4458] text-center">{error}</p>
+      )}
     </div>
   );
 }

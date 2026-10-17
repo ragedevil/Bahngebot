@@ -1,38 +1,107 @@
 "use client";
 
-import React, { useState } from "react";
-import { TrainConnection } from "@/types/connection";
+import React, { useMemo, useState } from "react";
+import { JourneyOffer } from "@/types/rail";
 import { ConnectionCard } from "./ConnectionCard";
-import { CALENDAR_DEALS } from "@/data/mockConnections";
+import {
+  formatDay,
+  formatDuration,
+  formatPrice,
+  isoDateRange,
+  toDateKey,
+} from "@/lib/format";
 
 interface ResultsDashboardProps {
-  connections: TrainConnection[];
+  offers: JourneyOffer[];
   fromStation: string;
   toStation: string;
+  /** Centre of the 7-day fare calendar; also the initially selected day. */
+  initialDate?: string;
 }
 
-export function ResultsDashboard({ connections, fromStation, toStation }: ResultsDashboardProps) {
+export function ResultsDashboard({
+  offers,
+  fromStation,
+  toStation,
+  initialDate,
+}: ResultsDashboardProps) {
   const [activeTab, setActiveTab] = useState<"cheapest" | "fastest" | "best">("cheapest");
   const [maxTransfers, setMaxTransfers] = useState<number | "all">("all");
-  const [selectedDay, setSelectedDay] = useState("Sat 24");
+  const [selectedDay, setSelectedDay] = useState<string | null>(
+    initialDate ?? null,
+  );
 
-  const filteredConnections = connections
-    .filter((c) => {
+  const fareDays = useMemo(() => {
+    const cheapestByDay = new Map<string, number>();
+
+    for (const offer of offers) {
+      const date = toDateKey(offer.departure);
+      const current = cheapestByDay.get(date);
+      if (current === undefined || offer.priceInCents < current) {
+        cheapestByDay.set(date, offer.priceInCents);
+      }
+    }
+
+    const centreDate =
+      initialDate ??
+      [...cheapestByDay.keys()].sort((left, right) =>
+        left.localeCompare(right),
+      )[0];
+
+    if (!centreDate) return [];
+
+    return isoDateRange(centreDate, 3, 3).map((date) => ({
+      date,
+      label: formatDay(date),
+      priceInCents: cheapestByDay.get(date) ?? null,
+    }));
+  }, [offers, initialDate]);
+
+  const cheapestCalendarPrice = fareDays.reduce<number | null>(
+    (cheapest, day) =>
+      day.priceInCents !== null &&
+      (cheapest === null || day.priceInCents < cheapest)
+        ? day.priceInCents
+        : cheapest,
+    null,
+  );
+
+  const activeDay =
+    (selectedDay && fareDays.some((day) => day.date === selectedDay)
+      ? selectedDay
+      : initialDate ?? fareDays.find((day) => day.priceInCents !== null)?.date) ??
+    null;
+
+  const dayOffers = activeDay
+    ? offers.filter((offer) => toDateKey(offer.departure) === activeDay)
+    : offers;
+
+  const filteredOffers = dayOffers
+    .filter((offer) => {
       if (maxTransfers === "all") return true;
-      return c.transfers <= maxTransfers;
+      return offer.transfers <= maxTransfers;
     })
     .sort((a, b) => {
-      if (activeTab === "cheapest") return a.price - b.price;
-      if (activeTab === "fastest") return parseInt(a.duration) - parseInt(b.duration);
-      return (a.price + a.transfers * 15) - (b.price + b.transfers * 15);
+      if (activeTab === "cheapest") return a.priceInCents - b.priceInCents;
+      if (activeTab === "fastest") return a.durationMinutes - b.durationMinutes;
+      return (
+        a.priceInCents + a.transfers * 1500 -
+        (b.priceInCents + b.transfers * 1500)
+      );
     });
 
-  const lowestPrice = Math.min(...connections.map(c => c.price));
-  const fastestDuration = connections.reduce((min, c) => c.duration < min ? c.duration : min, "99h");
+  const lowestPrice = dayOffers.length
+    ? Math.min(...dayOffers.map((offer) => offer.priceInCents))
+    : 0;
+  const fastestDuration = dayOffers.length
+    ? formatDuration(
+        Math.min(...dayOffers.map((offer) => offer.durationMinutes)),
+      )
+    : "—";
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
-      
+
       {/* Route Header & Fare Matrix (Obsidian Black with subtle Terminal Green undertone) */}
       <div className="rounded-2xl bg-[#09090B]/90 border border-white/10 p-5 shadow-2xl backdrop-blur-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
@@ -41,37 +110,46 @@ export function ResultsDashboard({ connections, fromStation, toStation }: Result
               {fromStation} to {toStation}
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              {filteredConnections.length} verified Deutsche Bahn connections
+              {filteredOffers.length} verified Deutsche Bahn connections
             </p>
           </div>
         </div>
 
         {/* Date Matrix */}
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
-          {CALENDAR_DEALS.map((deal) => {
-            const isSelected = selectedDay === deal.day;
-            return (
-              <button
-                key={deal.day}
-                onClick={() => setSelectedDay(deal.day)}
-                className={`py-2 px-1 rounded-xl text-center transition-colors border cursor-pointer ${
-                  isSelected
-                    ? "bg-[#2563EB] text-white border-[#2563EB] font-semibold shadow-md shadow-blue-500/20"
-                    : deal.lowest
-                    ? "bg-[#052E16] border-[#10B981]/40 text-[#10B981]"
-                    : "bg-white/[0.03] border-white/5 text-zinc-400 hover:text-[#FAFAFA] hover:border-white/10"
-                }`}
-              >
-                <div className={`text-[10px] ${isSelected ? "text-blue-100 font-medium" : "text-zinc-400"}`}>
-                  {deal.day}
-                </div>
-                <div className="text-xs font-bold mt-0.5">
-                  {deal.price}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {fareDays.length > 0 ? (
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+            {fareDays.map((deal) => {
+              const isSelected = activeDay === deal.date;
+              const isLowest =
+                deal.priceInCents !== null &&
+                deal.priceInCents === cheapestCalendarPrice;
+              return (
+                <button
+                  key={deal.date}
+                  onClick={() => setSelectedDay(deal.date)}
+                  className={`py-2 px-1 rounded-xl text-center transition-colors border cursor-pointer ${
+                    isSelected
+                      ? "bg-[#2563EB] text-white border-[#2563EB] font-semibold shadow-md shadow-blue-500/20"
+                      : isLowest
+                      ? "bg-[#052E16] border-[#10B981]/40 text-[#10B981]"
+                      : "bg-white/[0.03] border-white/5 text-zinc-400 hover:text-[#FAFAFA] hover:border-white/10"
+                  }`}
+                >
+                  <div className={`text-[10px] ${isSelected ? "text-blue-100 font-medium" : "text-zinc-400"}`}>
+                    {deal.label}
+                  </div>
+                  <div className="text-xs font-bold mt-0.5">
+                    {deal.priceInCents !== null
+                      ? formatPrice(deal.priceInCents)
+                      : "—"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-zinc-400">No fares available for this route.</p>
+        )}
       </div>
 
       {/* Sorting Segment Control */}
@@ -85,7 +163,7 @@ export function ResultsDashboard({ connections, fromStation, toStation }: Result
                 : "text-zinc-400 hover:text-[#FAFAFA]"
             }`}
           >
-            Cheapest · €{lowestPrice.toFixed(2)}
+            Cheapest · {formatPrice(lowestPrice)}
           </button>
           <button
             onClick={() => setActiveTab("fastest")}
@@ -129,9 +207,17 @@ export function ResultsDashboard({ connections, fromStation, toStation }: Result
 
       {/* Connections List */}
       <div className="space-y-3">
-        {filteredConnections.map((conn) => (
-          <ConnectionCard key={conn.id} connection={conn} />
+        {filteredOffers.map((offer) => (
+          <ConnectionCard key={offer.id} offer={offer} />
         ))}
+
+        {filteredOffers.length === 0 && (
+          <div className="rounded-2xl bg-[#09090B]/90 border border-white/10 p-6 text-center">
+            <p className="text-sm text-zinc-300">
+              No connections found for this route and date.
+            </p>
+          </div>
+        )}
       </div>
 
     </div>
