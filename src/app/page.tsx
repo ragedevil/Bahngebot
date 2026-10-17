@@ -1,14 +1,26 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Navbar } from "@/components/Navbar";
+import { ModeSelector, type TravelMode } from "@/components/ModeSelector";
 import { SpecificRouteWidget } from "@/components/SpecificRouteWidget";
-import { TinderMode } from "@/components/TinderMode";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
+import { TinderMode } from "@/components/TinderMode";
 import { MOCK_CONNECTIONS } from "@/data/mockConnections";
-import { Navigation, Flame, ArrowLeft } from "lucide-react";
+
+const formatRouteDate = (isoDate: string) => {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return isoDate;
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(parsed);
+};
 
 export default function Home() {
-  const [selectedMode, setSelectedMode] = useState<"specific" | "tinder" | null>(null);
+  const [selectedMode, setSelectedMode] = useState<TravelMode | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [connections] = useState(MOCK_CONNECTIONS);
   const [searchParams, setSearchParams] = useState({
@@ -18,32 +30,24 @@ export default function Home() {
     passengers: 1,
   });
 
-  // Typewriter effect state
-  const fullText = "For those who didn’t win DiscoverEU — or just want to go again.";
-  const [displayedText, setDisplayedText] = useState("");
-  const [isTypingComplete, setIsTypingComplete] = useState(false);
+  const handleSelectMode = (mode: TravelMode) => {
+    setSelectedMode(mode);
+    setHasSearched(mode === "specific");
+  };
 
-  useEffect(() => {
-    let index = 0;
-    setDisplayedText("");
-    setIsTypingComplete(false);
-
-    const timer = setInterval(() => {
-      index++;
-      if (index <= fullText.length) {
-        setDisplayedText(fullText.slice(0, index));
-      } else {
-        setIsTypingComplete(true);
-        clearInterval(timer);
-      }
-    }, 38);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const handleSearch = (criteria: { from: string; to: string; date: string; passengers: number }) => {
+  const handleSearch = (criteria: {
+    from: string;
+    to: string;
+    date: string;
+    passengers: number;
+  }) => {
     setSearchParams(criteria);
     setHasSearched(true);
+    window.setTimeout(() => {
+      document
+        .getElementById("results")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
   };
 
   const handleBackToModes = () => {
@@ -52,131 +56,61 @@ export default function Home() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#121214] text-[#FAFAFA] flex flex-col justify-between selection:bg-[#FF4458]/30 selection:text-white">
-      {/* Background: Munich Central Station (München Hbf) photo at 30% opacity */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-30 transition-opacity duration-1000 scale-105"
-          style={{
-            // High-resolution photo of Munich Central Station (München Hauptbahnhof)
-            backgroundImage: `url('https://images.unsplash.com/photo-1595867818082-083862f3d630?q=80&w=2600&auto=format&fit=crop')`,
-          }}
-        />
-        {/* Lighter ambient glow & gradient overlay - no harsh borders */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#121214] via-[#121214]/75 to-[#121214]/60" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_10%,_#121214_90%)]" />
-      </div>
+    <div className="flex min-h-dvh flex-col bg-canvas text-ink">
+      <Navbar />
 
-      {/* Main Container */}
-      <main className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 py-14 sm:py-24 flex flex-col items-center flex-1 justify-center">
-        
-        {/* Typewriter Title */}
-        <div className="text-center mb-10 max-w-3xl mx-auto min-h-[110px] sm:min-h-[140px] flex items-center justify-center">
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-semibold tracking-tight text-[#FAFAFA] leading-[1.15]">
-            {displayedText}
-            {!isTypingComplete && (
-              <span className="inline-block w-1 h-8 sm:h-12 bg-[#FF4458] ml-1.5 align-middle animate-pulse" />
-            )}
-          </h1>
-        </div>
-
-        {/* STEP 1: Mode Selection Cards (Lighter, no borders, clean Apple glass) */}
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 pb-16 sm:px-8">
         {selectedMode === null ? (
-          <div className="w-full max-w-xl mx-auto space-y-4">
-            <div className="text-center text-sm font-medium text-zinc-300 uppercase tracking-wider mb-3">
-              Select Your Travel Mode
+          <section className="flex flex-1 flex-col justify-center py-12 sm:py-20">
+            <div className="reveal mx-auto mb-10 max-w-2xl text-center sm:mb-12">
+              <h1 className="text-balance text-[44px] font-bold leading-[1.02] tracking-[-0.055em] text-ink sm:text-[62px]">
+                Go further,{" "}
+                <span className="text-muted">for less.</span>
+              </h1>
+
+              <p className="mx-auto mt-5 max-w-md text-balance text-[14.5px] leading-relaxed text-muted">
+                Hidden Sparpreis fares, live from Deutsche Bahn. Pick a precise
+                route — or let the right one find you.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Option 1: Specific Route */}
-              <button
-                onClick={() => setSelectedMode("specific")}
-                className="group p-7 rounded-3xl bg-white/[0.08] hover:bg-white/[0.12] backdrop-blur-2xl transition-all duration-300 text-left flex flex-col justify-between hover:scale-[1.02] active:scale-[0.99] cursor-pointer shadow-xl shadow-black/20"
-              >
-                <div>
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-[#FAFAFA] mb-5 group-hover:bg-[#2563EB] group-hover:text-white transition-colors">
-                    <Navigation className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-[#FAFAFA] tracking-tight">
-                    Specific Route
-                  </h3>
-                  <p className="text-xs sm:text-sm text-zinc-300 mt-2 leading-relaxed font-normal">
-                    Search point-to-point connections with custom dates and stations.
-                  </p>
-                </div>
-
-                <div className="mt-8 flex items-center text-sm font-medium text-white gap-1 group-hover:translate-x-1 transition-transform">
-                  <span>Enter Route</span>
-                  <span className="text-zinc-400">→</span>
-                </div>
-              </button>
-
-              {/* Option 2: Tinder Mode with Flame icon & Tinder Pink (#FF4458) */}
-              <button
-                onClick={() => setSelectedMode("tinder")}
-                className="group p-7 rounded-3xl bg-[#FF4458]/[0.12] hover:bg-[#FF4458]/[0.18] backdrop-blur-2xl transition-all duration-300 text-left flex flex-col justify-between hover:scale-[1.02] active:scale-[0.99] cursor-pointer shadow-xl shadow-[#FF4458]/10"
-              >
-                <div>
-                  <div className="w-12 h-12 rounded-2xl bg-[#FF4458]/20 flex items-center justify-center text-[#FF4458] mb-5 group-hover:bg-[#FF4458] group-hover:text-white transition-colors">
-                    <Flame className="w-6 h-6 fill-current" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-semibold text-[#FAFAFA] tracking-tight">
-                      Tinder Mode
-                    </h3>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#FF4458]/20 text-[#FF4458]">
-                      Explore
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-zinc-300 mt-2 leading-relaxed font-normal">
-                    Input your departure city and budget, then swipe random train deals.
-                  </p>
-                </div>
-
-                <div className="mt-8 flex items-center text-sm font-medium text-[#FF4458] gap-1 group-hover:translate-x-1 transition-transform">
-                  <span>Explore Tracks</span>
-                  <span>→</span>
-                </div>
-              </button>
+            <div className="reveal reveal-delay-1 mx-auto w-full max-w-3xl">
+              <ModeSelector onSelect={handleSelectMode} />
             </div>
-          </div>
+          </section>
         ) : (
-          /* STEP 2: Selected Mode View */
-          <div className="w-full">
-            {/* Top Bar Switcher (no borders) */}
-            <div className="mb-6 flex items-center justify-between max-w-4xl mx-auto px-2">
-              <button
-                onClick={handleBackToModes}
-                className="text-xs sm:text-sm text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer bg-white/[0.06] hover:bg-white/[0.1] px-3.5 py-1.5 rounded-full backdrop-blur-md"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Modes</span>
-              </button>
-
-              <div
-                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium backdrop-blur-md ${
-                  selectedMode === "tinder"
-                    ? "bg-[#FF4458]/20 text-[#FF4458]"
-                    : "bg-white/[0.08] text-white"
-                }`}
-              >
-                {selectedMode === "tinder" ? (
-                  <>
-                    <Flame className="w-3.5 h-3.5 fill-current" />
-                    <span>Tinder Mode (Explore)</span>
-                  </>
-                ) : (
-                  <>
-                    <Navigation className="w-3.5 h-3.5" />
-                    <span>Specific Route Search</span>
-                  </>
-                )}
-              </div>
-            </div>
-
+          <div className="w-full pt-5 sm:pt-7">
             {selectedMode === "specific" ? (
-              <>
+              <section className="reveal mx-auto w-full">
+                <button
+                  type="button"
+                  onClick={handleBackToModes}
+                  className="inline-flex items-center gap-2 rounded-full border border-hairline bg-surface px-3.5 py-2 text-[11.5px] font-medium text-muted transition-colors duration-200 hover:text-ink"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  <span>Back</span>
+                </button>
+
+                <div className="mb-7 mt-6">
+                  <h1 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[27px] font-bold tracking-[-0.045em] text-ink sm:text-[34px]">
+                    <span>{searchParams.from}</span>
+                    <ArrowRight
+                      className="h-4 w-4 text-muted sm:h-5 sm:w-5"
+                      strokeWidth={2}
+                    />
+                    <span>{searchParams.to}</span>
+                  </h1>
+                  <p className="mt-2 text-[11.5px] font-normal text-muted">
+                    {formatRouteDate(searchParams.date)}
+                    <span className="mx-2 text-muted/50" aria-hidden="true">
+                      —
+                    </span>
+                    {connections.length} connections
+                  </p>
+                </div>
+
                 <SpecificRouteWidget
+                  className="reveal reveal-delay-1"
                   initialFrom={searchParams.from}
                   initialTo={searchParams.to}
                   initialDate={searchParams.date}
@@ -184,7 +118,10 @@ export default function Home() {
                 />
 
                 {hasSearched && (
-                  <div className="w-full mt-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div
+                    id="results"
+                    className="reveal reveal-delay-2 mt-8 scroll-mt-6"
+                  >
                     <ResultsDashboard
                       connections={connections}
                       fromStation={searchParams.from}
@@ -192,13 +129,31 @@ export default function Home() {
                     />
                   </div>
                 )}
-              </>
+              </section>
             ) : (
-              <TinderMode onBack={handleBackToModes} />
+              <section className="mx-auto w-full">
+                <button
+                  type="button"
+                  onClick={handleBackToModes}
+                  className="inline-flex items-center gap-2 rounded-full border border-hairline bg-surface px-3.5 py-2 text-[11.5px] font-medium text-muted transition-colors duration-200 hover:text-ink"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  <span>Back</span>
+                </button>
+                <div className="mt-8">
+                  <TinderMode />
+                </div>
+              </section>
             )}
           </div>
         )}
       </main>
+
+      <footer className="mx-auto w-full max-w-5xl px-5 pb-6 sm:px-8">
+        <div className="border-t border-hairline pt-5 text-[10px] font-normal text-muted">
+          Independent fare discovery. Not affiliated with Deutsche Bahn.
+        </div>
+      </footer>
     </div>
   );
 }

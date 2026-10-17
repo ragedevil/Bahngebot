@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { TrainConnection } from "@/types/connection";
 import { ConnectionCard } from "./ConnectionCard";
-import { CALENDAR_DEALS } from "@/data/mockConnections";
+import { DateStrip } from "./DateStrip";
 
 interface ResultsDashboardProps {
   connections: TrainConnection[];
@@ -11,129 +11,123 @@ interface ResultsDashboardProps {
   toStation: string;
 }
 
-export function ResultsDashboard({ connections, fromStation, toStation }: ResultsDashboardProps) {
-  const [activeTab, setActiveTab] = useState<"cheapest" | "fastest" | "best">("cheapest");
-  const [maxTransfers, setMaxTransfers] = useState<number | "all">("all");
+const durationInMinutes = (duration: string) => {
+  const hours = Number(duration.match(/(\d+)h/)?.[1] ?? 0);
+  const minutes = Number(duration.match(/(\d+)m/)?.[1] ?? 0);
+  return hours * 60 + minutes;
+};
+
+type SortMode = "cheapest" | "fastest" | "best";
+
+const sortOptions: { value: SortMode; label: string }[] = [
+  { value: "cheapest", label: "Cheapest" },
+  { value: "fastest", label: "Fastest" },
+  { value: "best", label: "Recommended" },
+];
+
+export function ResultsDashboard({
+  connections,
+  fromStation,
+  toStation,
+}: ResultsDashboardProps) {
+  const [activeTab, setActiveTab] = useState<SortMode>("cheapest");
+  const [directOnly, setDirectOnly] = useState(false);
   const [selectedDay, setSelectedDay] = useState("Sat 24");
 
   const filteredConnections = connections
-    .filter((c) => {
-      if (maxTransfers === "all") return true;
-      return c.transfers <= maxTransfers;
-    })
+    .filter((connection) => (directOnly ? connection.transfers === 0 : true))
     .sort((a, b) => {
       if (activeTab === "cheapest") return a.price - b.price;
-      if (activeTab === "fastest") return parseInt(a.duration) - parseInt(b.duration);
-      return (a.price + a.transfers * 15) - (b.price + b.transfers * 15);
+      if (activeTab === "fastest") {
+        return durationInMinutes(a.duration) - durationInMinutes(b.duration);
+      }
+      return a.price + a.transfers * 15 - (b.price + b.transfers * 15);
     });
 
-  const lowestPrice = Math.min(...connections.map(c => c.price));
-  const fastestDuration = connections.reduce((min, c) => c.duration < min ? c.duration : min, "99h");
-
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      
-      {/* Route Header & Fare Matrix (Obsidian Black with subtle Terminal Green undertone) */}
-      <div className="rounded-2xl bg-[#09090B]/90 border border-white/10 p-5 shadow-2xl backdrop-blur-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight text-[#FAFAFA]">
-              {fromStation} to {toStation}
-            </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              {filteredConnections.length} verified Deutsche Bahn connections
-            </p>
+    <div className="w-full space-y-5">
+      <DateStrip selectedDay={selectedDay} onSelect={setSelectedDay} />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="px-1 text-[11px] font-medium text-muted">
+          {filteredConnections.length}{" "}
+          {filteredConnections.length === 1 ? "departure" : "departures"}
+          <span className="sr-only">
+            {" "}
+            from {fromStation} to {toStation}
+          </span>
+        </p>
+
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
+          <div
+            role="group"
+            aria-label="Sort connections"
+            className="scrollbar-none flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded-lg border border-hairline bg-surface p-1 sm:flex-none"
+          >
+            {sortOptions.map((option) => {
+              const isActive = activeTab === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setActiveTab(option.value)}
+                  aria-pressed={isActive}
+                  className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors duration-200 ${
+                    isActive
+                      ? "bg-ink text-canvas"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
-        </div>
 
-        {/* Date Matrix */}
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
-          {CALENDAR_DEALS.map((deal) => {
-            const isSelected = selectedDay === deal.day;
-            return (
-              <button
-                key={deal.day}
-                onClick={() => setSelectedDay(deal.day)}
-                className={`py-2 px-1 rounded-xl text-center transition-colors border cursor-pointer ${
-                  isSelected
-                    ? "bg-[#2563EB] text-white border-[#2563EB] font-semibold shadow-md shadow-blue-500/20"
-                    : deal.lowest
-                    ? "bg-[#052E16] border-[#10B981]/40 text-[#10B981]"
-                    : "bg-white/[0.03] border-white/5 text-zinc-400 hover:text-[#FAFAFA] hover:border-white/10"
-                }`}
-              >
-                <div className={`text-[10px] ${isSelected ? "text-blue-100 font-medium" : "text-zinc-400"}`}>
-                  {deal.day}
-                </div>
-                <div className="text-xs font-bold mt-0.5">
-                  {deal.price}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Sorting Segment Control */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="inline-flex p-1 rounded-xl bg-[#09090B]/90 border border-white/10">
           <button
-            onClick={() => setActiveTab("cheapest")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "cheapest"
-                ? "bg-[#2563EB] text-white font-semibold shadow-sm"
-                : "text-zinc-400 hover:text-[#FAFAFA]"
+            type="button"
+            onClick={() => setDirectOnly((value) => !value)}
+            aria-pressed={directOnly}
+            className={`shrink-0 rounded-md border px-3.5 py-2 text-[11px] font-medium transition-colors duration-200 ${
+              directOnly
+                ? "border-ink bg-ink text-canvas"
+                : "border-hairline bg-surface text-muted hover:border-ink/10 hover:text-ink"
             }`}
           >
-            Cheapest · €{lowestPrice.toFixed(2)}
-          </button>
-          <button
-            onClick={() => setActiveTab("fastest")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "fastest"
-                ? "bg-[#2563EB] text-white font-semibold shadow-sm"
-                : "text-zinc-400 hover:text-[#FAFAFA]"
-            }`}
-          >
-            Fastest · {fastestDuration}
-          </button>
-          <button
-            onClick={() => setActiveTab("best")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === "best"
-                ? "bg-[#2563EB] text-white font-semibold shadow-sm"
-                : "text-zinc-400 hover:text-[#FAFAFA]"
-            }`}
-          >
-            Recommended
-          </button>
-        </div>
-
-        {/* Transfers filter */}
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-zinc-400">
-          <span>Stops:</span>
-          <button
-            onClick={() => setMaxTransfers("all")}
-            className={`px-2 py-0.5 rounded text-[11px] cursor-pointer ${maxTransfers === "all" ? "text-white bg-white/10" : "hover:text-white"}`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setMaxTransfers(0)}
-            className={`px-2 py-0.5 rounded text-[11px] cursor-pointer ${maxTransfers === 0 ? "text-white bg-white/10" : "hover:text-white"}`}
-          >
-            Direct
+            Direct only
           </button>
         </div>
       </div>
 
-      {/* Connections List */}
       <div className="space-y-3">
-        {filteredConnections.map((conn) => (
-          <ConnectionCard key={conn.id} connection={conn} />
+        {filteredConnections.map((connection, index) => (
+          <div
+            key={connection.id}
+            className="reveal"
+            style={{ animationDelay: `${Math.min(index * 45, 180)}ms` }}
+          >
+            <ConnectionCard connection={connection} />
+          </div>
         ))}
-      </div>
 
+        {filteredConnections.length === 0 && (
+          <div className="rounded-lg border border-hairline bg-surface px-6 py-14 text-center">
+            <p className="text-[14px] font-medium text-ink">
+              No direct connections found
+            </p>
+            <p className="mt-1.5 text-[11.5px] text-muted">
+              Try allowing one transfer to see more departures.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDirectOnly(false)}
+              className="mt-5 inline-flex h-10 items-center justify-center rounded-md bg-brand px-5 text-[12px] font-semibold text-black transition-colors duration-200 hover:bg-brand-hover active:bg-brand-active"
+            >
+              Show all connections
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

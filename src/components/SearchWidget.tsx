@@ -30,11 +30,11 @@ export function SearchWidget({ onSearch, className = "" }: SearchWidgetProps) {
     <div className={`w-full max-w-4xl mx-auto p-4 ${className}`}>
       <form
         onSubmit={handleSubmit}
-        className="bg-[#161618] border border-white/10 rounded-2xl p-2 flex flex-col md:flex-row items-center gap-2 shadow-2xl backdrop-blur-xl"
+        className="app-card rounded-2xl p-2 flex flex-col md:flex-row items-center gap-2"
       >
         {/* From */}
-        <div className="flex-1 w-full px-4 py-3 bg-white/[0.04] rounded-xl border border-white/5 flex items-center gap-3">
-          <span className="text-zinc-500 text-xs font-medium uppercase tracking-wider shrink-0">
+        <div className="flex-1 w-full px-4 py-3 bg-surface-raised rounded-xl flex items-center gap-3">
+          <span className="text-muted text-xs font-medium uppercase tracking-wider shrink-0">
             From
           </span>
           <input
@@ -42,7 +42,7 @@ export function SearchWidget({ onSearch, className = "" }: SearchWidgetProps) {
             value={from}
             onChange={(e) => setFrom(e.target.value)}
             placeholder="Berlin Hbf"
-            className="w-full bg-transparent text-white placeholder-zinc-600 focus:outline-none text-sm font-medium"
+            className="w-full bg-transparent text-ink placeholder:text-muted/70 focus:outline-none text-sm font-medium"
           />
         </div>
 
@@ -51,14 +51,14 @@ export function SearchWidget({ onSearch, className = "" }: SearchWidgetProps) {
           type="button"
           onClick={handleSwap}
           aria-label="Swap departure and destination"
-          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors shrink-0"
+          className="p-2 rounded-xl bg-surface hover:bg-surface-raised text-muted hover:text-ink transition-colors shrink-0"
         >
           <ArrowRightLeft className="w-4 h-4" />
         </button>
 
         {/* To */}
-        <div className="flex-1 w-full px-4 py-3 bg-white/[0.04] rounded-xl border border-white/5 flex items-center gap-3">
-          <span className="text-zinc-500 text-xs font-medium uppercase tracking-wider shrink-0">
+        <div className="flex-1 w-full px-4 py-3 bg-surface-raised rounded-xl flex items-center gap-3">
+          <span className="text-muted text-xs font-medium uppercase tracking-wider shrink-0">
             To
           </span>
           <input
@@ -66,25 +66,25 @@ export function SearchWidget({ onSearch, className = "" }: SearchWidgetProps) {
             value={to}
             onChange={(e) => setTo(e.target.value)}
             placeholder="München Hbf"
-            className="w-full bg-transparent text-white placeholder-zinc-600 focus:outline-none text-sm font-medium"
+            className="w-full bg-transparent text-ink placeholder:text-muted/70 focus:outline-none text-sm font-medium"
           />
         </div>
 
         {/* When */}
-        <div className="w-full md:w-44 px-4 py-3 bg-white/[0.04] rounded-xl border border-white/5 flex items-center gap-3">
-          <Calendar className="w-4 h-4 text-zinc-500 shrink-0" />
+        <div className="w-full md:w-44 px-4 py-3 bg-surface-raised rounded-xl flex items-center gap-3">
+          <Calendar className="w-4 h-4 text-muted shrink-0" />
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-transparent text-white focus:outline-none text-sm font-medium [color-scheme:dark]"
+            className="w-full bg-transparent text-ink focus:outline-none text-sm font-medium"
           />
         </div>
 
         {/* Submit */}
         <button
           type="submit"
-          className="w-full md:w-auto px-6 py-3.5 bg-white text-black rounded-xl font-medium text-sm hover:bg-zinc-200 active:scale-[0.98] transition-all shrink-0 cursor-pointer"
+          className="w-full md:w-auto px-6 py-3.5 bg-ink text-canvas rounded-xl font-medium text-sm hover:opacity-90 active:scale-[0.98] transition-all shrink-0 cursor-pointer"
         >
           Search
         </button>
