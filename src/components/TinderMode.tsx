@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Heart, RotateCcw, ArrowRight, Calendar, MapPin, ArrowLeft, Flame } from "lucide-react";
 
 import { StationAutocomplete } from "@/components/StationAutocomplete";
@@ -38,6 +38,27 @@ function dealHighlight(offer: JourneyOffer): string {
   return `${stops} · ${product} · ${formatFareCategory(offer.category)}`;
 }
 
+/**
+ * The API returns several departure times per corridor. Keep only the cheapest
+ * offer for each unique destination so every swipe card is a different city.
+ */
+function buildDeck(offers: JourneyOffer[]): JourneyOffer[] {
+  const cheapestByDestination = new Map<string, JourneyOffer>();
+
+  for (const offer of offers) {
+    const key = offer.destination.id || offer.destination.name;
+    const current = cheapestByDestination.get(key);
+
+    if (!current || offer.priceInCents < current.priceInCents) {
+      cheapestByDestination.set(key, offer);
+    }
+  }
+
+  return Array.from(cheapestByDestination.values()).sort(
+    (a, b) => a.priceInCents - b.priceInCents,
+  );
+}
+
 interface TinderModeProps {
   onBack: () => void;
 }
@@ -51,17 +72,24 @@ export function TinderMode({ onBack }: TinderModeProps) {
   const [gender, setGender] = useState<"boy" | "girl">("boy");
   const [hasStartedSwiping, setHasStartedSwiping] = useState(false);
   const [offers, setOffers] = useState<JourneyOffer[]>([]);
-  const [deckIndex, setDeckIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [likedTrips, setLikedTrips] = useState<JourneyOffer[]>([]);
   const [lastAction, setLastAction] = useState<"pass" | "like" | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadedDeckKey = useRef<string | null>(null);
 
-  const filteredDeals = offers.filter(
-    (deal) => deal.priceInCents <= Math.round(budget * 100),
+  const deck = useMemo(
+    () =>
+      buildDeck(
+        offers.filter(
+          (deal) => deal.priceInCents <= Math.round(budget * 100),
+        ),
+      ),
+    [budget, offers],
   );
-  const activeDeal = filteredDeals[deckIndex];
+  const activeDeal = deck[currentIndex];
+  const isDeckFinished = currentIndex >= deck.length;
   const roleLabel = gender === "boy" ? "I will rail" : "I'll be railed";
 
   const deckKey = `${fromStation?.id ?? ""}|${date}|${budget}`;
@@ -105,7 +133,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
         .then((data) => {
           if (controller.signal.aborted) return;
           setOffers(data);
-          setDeckIndex(0);
+          setCurrentIndex(0);
           setLikedTrips([]);
           setLastAction(null);
         })
@@ -155,7 +183,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
       }
     }
 
-    setDeckIndex(0);
+    setCurrentIndex(0);
     setLikedTrips([]);
     setLastAction(null);
     setHasStartedSwiping(true);
@@ -170,13 +198,13 @@ export function TinderMode({ onBack }: TinderModeProps) {
     }
 
     setTimeout(() => {
-      setDeckIndex((prev) => prev + 1);
+      setCurrentIndex((prev) => prev + 1);
       setLastAction(null);
     }, 200);
   };
 
   const handleReset = () => {
-    setDeckIndex(0);
+    setCurrentIndex(0);
     setLikedTrips([]);
     setLastAction(null);
   };
@@ -345,7 +373,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
         </span>
       </div>
 
-      {deckIndex < filteredDeals.length ? (
+      {!isDeckFinished && activeDeal ? (
         <div className="w-full flex flex-col items-center">
           <div
             className={`relative w-full h-[460px] rounded-3xl overflow-hidden shadow-2xl transition-all duration-200 bg-zinc-900/90 select-none ${
@@ -419,7 +447,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
           </div>
 
           <h3 className="text-2xl font-semibold tracking-tight text-[#FAFAFA]">
-            Your Track Matches
+            Your Matches
           </h3>
           <p className="text-xs sm:text-sm text-zinc-300 mt-2 mb-6">
             Found <strong className="text-[#FF4458]">{likedTrips.length} matches</strong> under €{budget} from {fromStation?.name}.
@@ -451,9 +479,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
             </div>
           ) : (
             <p className="text-xs text-zinc-400 mb-6">
-              {filteredDeals.length === 0
-                ? "No journeys matched this origin, date and budget."
-                : "No routes saved. Try adjusting your budget."}
+              No matches yet - broaden your budget or swipe right on more tracks
             </p>
           )}
 
@@ -463,7 +489,7 @@ export function TinderMode({ onBack }: TinderModeProps) {
               className="flex-1 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-[#FAFAFA] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Restart Swiping</span>
+              <span>{likedTrips.length > 0 ? "Start New Search" : "Swipe Again"}</span>
             </button>
             <button
               onClick={() => setHasStartedSwiping(false)}
