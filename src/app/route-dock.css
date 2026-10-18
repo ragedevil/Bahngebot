@@ -1,0 +1,60 @@
+@layer components {
+  /* The station dock: one solid frame shared by every viewport.
+     Light: pure white lifted off the #F4F5F7 canvas.
+     Dark: charcoal panel (see the attribute rule below). */
+  .route-dock {
+    @apply w-full rounded-2xl border backdrop-blur-xl;
+    border-color: #e4e4e7;
+    background-color: #ffffff;
+    color: #18181b;
+    box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.08);
+  }
+
+  :root[data-theme="dark"] .route-dock {
+    border-color: rgba(255, 255, 255, 0.08);
+    background-color: #141820;
+    color: #ffffff;
+    box-shadow:
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
+      0 24px 60px -32px rgba(0, 0, 0, 0.9);
+  }
+
+  /* Generous vertical room; horizontal padding lives on the fields so the
+     swap rail keeps its own breathing space. */
+  .route-field {
+    @apply relative flex min-w-0 flex-1 flex-col justify-center px-5 py-5;
+  }
+
+  /* Label gets its own line-box and gap, so a tall descender never sits on
+     the input's ascenders. Muted, but never so faint it disappears. */
+  .route-label {
+    @apply mb-1.5 block truncate text-[10px] font-semibold uppercase leading-4 tracking-wider;
+    color: #71717a;
+  }
+
+  :root[data-theme="dark"] .route-label {
+    color: #a1a1aa;
+  }
+
+  /* Body size, not display size: a station name such as "Dortmund Hbf" has to
+     fit the field whole. Spacing (not font size) carries the dock's weight.
+     Explicit line-height keeps the input's box inside the field's padding.
+     A single line, so nothing wraps into the label: the rare name longer than
+     its field ends in a clean ellipsis instead of being sliced mid-glyph. */
+  .route-input {
+    @apply block w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap bg-transparent text-base font-medium leading-normal focus:outline-none;
+    color: #18181b;
+  }
+
+  .route-input::placeholder {
+    color: #71717a;
+  }
+
+  :root[data-theme="dark"] .route-input {
+    color: #ffffff;
+  }
+
+  :root[data-theme="dark"] .route-input::placeholder {
+    color: #71717a;
+  }
+}

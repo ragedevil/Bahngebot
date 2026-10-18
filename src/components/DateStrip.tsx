@@ -2,25 +2,26 @@
 
 import React from "react";
 import { CALENDAR_DEALS } from "@/data/mockConnections";
+import type { TravelMode } from "@/types/travel";
 
 interface DateStripProps {
   selectedDay: string;
   onSelect: (day: string) => void;
+  mode?: TravelMode;
 }
 
-export function DateStrip({ selectedDay, onSelect }: DateStripProps) {
-  return (
-    <section aria-label="Flexible dates and lowest fares">
-      <div className="mb-3 flex items-end justify-between px-0.5">
-        <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-          Flexible dates
-        </h2>
-        <span className="text-[10px] font-medium text-muted/70">
-          Lowest fare per day
-        </span>
-      </div>
+const GLASS =
+  "bar-glass rounded-xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.15)]";
 
-      <div className="scrollbar-none flex snap-x gap-1 overflow-x-auto rounded-lg border border-hairline bg-surface p-1">
+export function DateStrip({ selectedDay, onSelect, mode = "specific" }: DateStripProps) {
+  const accent = mode === "tinder" ? "text-[#FE3C72]" : "text-[#1DB954]";
+
+  return (
+    <section aria-label="Flexible dates">
+      <div
+        role="group"
+        className={`scrollbar-none flex snap-x gap-1 overflow-x-auto p-1 ${GLASS}`}
+      >
         {CALENDAR_DEALS.map((deal) => {
           const [weekday, dayNumber] = deal.day.split(" ");
           const isSelected = selectedDay === deal.day;
@@ -32,36 +33,27 @@ export function DateStrip({ selectedDay, onSelect }: DateStripProps) {
               onClick={() => onSelect(deal.day)}
               aria-pressed={isSelected}
               aria-label={`${deal.day}, from ${deal.price}`}
-              className={`relative flex min-w-[76px] flex-1 snap-start flex-col items-center rounded-md border px-2.5 pb-2.5 pt-2 text-center transition-colors duration-200 sm:min-w-[86px] ${
+              className={`flex min-w-[76px] flex-1 snap-start flex-col items-center rounded-lg px-2.5 py-2.5 transition-colors ${
                 isSelected
-                  ? "border-brand/70 bg-brand/[0.07]"
-                  : "border-transparent hover:border-hairline hover:bg-surface-raised"
+                  ? mode === "tinder"
+                    ? "bg-[#FE3C72]/15 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.15)]"
+                    : "bg-white/[0.08] shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.15)]"
+                  : "hover:bg-white/[0.04]"
               }`}
             >
-              <span
-                className={`text-[9px] font-semibold uppercase leading-none tracking-[0.14em] ${
-                  isSelected ? "text-ink" : "text-muted"
-                }`}
-              >
+              <span className="text-[11px] font-medium text-zinc-500">
                 {weekday}
               </span>
-              <span className="mt-1.5 text-[17px] font-semibold leading-none tracking-[-0.035em] text-ink tabular-nums">
+              <span className="mt-1 text-base font-semibold tabular-nums text-white">
                 {dayNumber}
               </span>
               <span
-                className={`mt-2 text-[10px] font-medium leading-none tabular-nums ${
-                  isSelected ? "text-ink" : "text-muted"
+                className={`mt-1 text-xs tabular-nums ${
+                  isSelected ? accent : "text-zinc-400"
                 }`}
               >
                 {deal.price}
               </span>
-
-              {isSelected && (
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-3 top-0 h-0.5 bg-brand/80"
-                />
-              )}
             </button>
           );
         })}

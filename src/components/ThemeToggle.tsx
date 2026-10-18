@@ -3,72 +3,63 @@
 import React, { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
-type Theme = "light" | "dark";
+const STORAGE_KEY = "bahngebot:theme";
 
-function subscribeToTheme(callback: () => void) {
-  const observer = new MutationObserver(callback);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["class"],
-  });
-  return () => observer.disconnect();
+type Theme = "dark" | "light";
+
+/** Read the theme the pre-paint script already committed to `<html>`. */
+function readTheme(): Theme {
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
 }
 
-function getThemeSnapshot(): Theme {
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+/** The script in `layout.tsx` owns the DOM; this notifies the toggle. */
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
-function getServerThemeSnapshot(): Theme {
-  return "dark";
+function applyTheme(next: Theme) {
+  document.documentElement.dataset.theme = next;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, next);
+  } catch {
+    // Private mode: the session keeps the choice, storage just won't.
+  }
+  listeners.forEach((listener) => listener());
 }
 
-export function ThemeToggle() {
+/**
+ * Compact sun/moon switch for the header.
+ *
+ * Renders the moon glyph on the server and swaps to the real icon after
+ * hydration, so the prerendered markup stays static and never mismatches.
+ */
+export function ThemeToggle({ className = "" }: { className?: string }) {
   const theme = useSyncExternalStore(
-    subscribeToTheme,
-    getThemeSnapshot,
-    getServerThemeSnapshot,
+    subscribe,
+    readTheme,
+    () => "dark" as Theme,
   );
 
-  const applyTheme = (next: Theme) => {
-    document.documentElement.classList.toggle("dark", next === "dark");
-    try {
-      localStorage.setItem("bahngebot-theme", next);
-    } catch {
-      // Private mode — fall back to the in-memory theme.
-    }
-  };
-
-  const options: { value: Theme; label: string; icon: typeof Sun }[] = [
-    { value: "light", label: "Light mode", icon: Sun },
-    { value: "dark", label: "Dark mode", icon: Moon },
-  ];
+  const isLight = theme === "light";
+  const next: Theme = isLight ? "dark" : "light";
 
   return (
-    <div
-      role="group"
-      aria-label="Color theme"
-      className="flex items-center gap-0.5 rounded-full bg-surface-raised p-1"
+    <button
+      type="button"
+      onClick={() => applyTheme(next)}
+      aria-label={`Switch to ${next} theme`}
+      aria-pressed={isLight}
+      title={`Switch to ${next} theme`}
+      className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-400 transition-colors hover:bg-white/[0.12] hover:text-white ${className}`}
     >
-      {options.map(({ value, label, icon: Icon }) => {
-        const isActive = theme === value;
-        return (
-          <button
-            key={value}
-            type="button"
-            onClick={() => applyTheme(value)}
-            aria-label={label}
-            aria-pressed={isActive}
-            title={label}
-            className={`flex h-7 w-7 items-center justify-center rounded-full transition-apple active:scale-95 ${
-              isActive
-                ? "bg-pill text-ink"
-                : "text-muted hover:text-ink"
-            }`}
-          >
-            <Icon className="h-3.5 w-3.5" strokeWidth={2} />
-          </button>
-        );
-      })}
-    </div>
+      {isLight ? (
+        <Sun className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+      ) : (
+        <Moon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+      )}
+    </button>
   );
 }
